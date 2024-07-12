@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./helper/passport');
 const mongoose = require('mongoose');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
