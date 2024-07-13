@@ -17,12 +17,12 @@ exports.createRoom = [
 ];
 
 exports.getRooms = asyncHandler(async (req, res, next) => {
-  const rooms = Room.find().sort({ name: 1 }).exec();
+  const rooms = await Room.find().sort({ name: 1 }).exec();
   return res.json({ rooms });
 });
 
 exports.getRoom = asyncHandler(async (req, res, next) => {
-  const room = Room.find(req.params.roomId).exec();
+  const room = await Room.findById(req.params.roomId).exec();
 
   if (!room) {
     return res.status(404).json({ msg: 'Room not found' });

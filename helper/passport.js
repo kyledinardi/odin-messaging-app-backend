@@ -6,23 +6,26 @@ const { ExtractJwt } = require('passport-jwt');
 const User = require('../models/user');
 
 passport.use(
-  new LocalStragetgy(async (username, password, done) => {
-    try {
-      const user = await User.findOne({ email: username });
-      const match = await bcrypt.compare(password, user.password);
+  new LocalStragetgy(
+    { usernameField: 'email', passwordField: 'password' },
+    async (username, password, done) => {
+      try {
+        const user = await User.findOne({ email: username });
+        const match = await bcrypt.compare(password, user.password);
 
-      if (!user) {
-        return done(null, false, { message: 'Incorrect email' });
-      }
-      if (!match) {
-        return done(null, false, { message: 'Incorrect password' });
-      }
+        if (!user) {
+          return done(null, false, { message: 'Incorrect email' });
+        }
+        if (!match) {
+          return done(null, false, { message: 'Incorrect password' });
+        }
 
-      return done(null, user);
-    } catch (err) {
-      return done(err);
-    }
-  }),
+        return done(null, user);
+      } catch (err) {
+        return done(err);
+      }
+    },
+  ),
 );
 
 passport.use(
@@ -34,7 +37,7 @@ passport.use(
 
     async (jwtPayload, done) => {
       try {
-        const user = await User.findById(jwtPayload._id);
+        const user = await User.findById(jwtPayload.id);
         return done(null, user || false);
       } catch (err) {
         return done(err, false);

@@ -23,6 +23,11 @@ exports.createUser = [
       }),
   ),
 
+  body('screenName', 'Screen name must not be empty')
+    .trim()
+    .escape()
+    .isLength({ min: 1 }),
+
   body('password', 'Password must not be empty')
     .trim()
     .escape()
@@ -45,6 +50,7 @@ exports.createUser = [
     const user = new User({
       email: req.body.email,
       password: hashedPassword,
+      screenName: req.body.screenName,
     });
 
     await user.save();
@@ -68,8 +74,13 @@ exports.login = (req, res, next) => [
       if (err2) {
         return next(err2);
       }
+      const userInfo = {
+        id: user._id,
+        email: user.email,
+        screenName: user.screenName,
+      };
 
-      const token = jwt.sign(user, process.env.JWT_SECRET);
+      const token = jwt.sign(userInfo, process.env.JWT_SECRET);
       return res.json({ user, token });
     });
 
