@@ -6,8 +6,20 @@ const messageController = require('../controllers/messageController');
 
 const router = express.Router();
 
-router.post('/users/sign-up', userController.createUser);
 router.post('/users/login', userController.login);
+router.post('/users', userController.createUser);
+
+router.put(
+  '/users',
+  passport.authenticate('jwt', { session: false }),
+  userController.updateUser,
+);
+
+router.delete(
+  '/users',
+  passport.authenticate('jwt', { session: false }),
+  userController.deleteUser,
+);
 
 router.post(
   '/rooms',

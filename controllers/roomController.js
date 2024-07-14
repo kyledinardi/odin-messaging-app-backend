@@ -8,7 +8,8 @@ exports.createRoom = [
   asyncHandler(async (req, res, next) => {
     const room = new Room({
       name: req.body.name,
-      public: req.body.public || false,
+      users: req.body.users,
+      isPublic: req.body.isPublic,
     });
 
     await room.save();

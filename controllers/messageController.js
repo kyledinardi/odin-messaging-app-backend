@@ -7,6 +7,14 @@ exports.createMessage = [
   body('text').trim().escape(),
 
   asyncHandler(async (req, res, next) => {
+    const room = await Room.findById(req.body.room).exec();
+
+    if (!room.isPublic && !room.users.includes(req.user.username)) {
+      return res
+        .status(403)
+        .json({ msg: 'You cannot send messages to that room' });
+    }
+
     const message = new Message({
       text: req.body.text,
       timestamp: Date.now(),
