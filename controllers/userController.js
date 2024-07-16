@@ -26,7 +26,6 @@ exports.login = (req, res, next) => [
       const userInfo = {
         id: user._id,
         username: user.username,
-        screenName: user.screenName,
       };
 
       const token = jwt.sign(userInfo, process.env.JWT_SECRET);
@@ -77,13 +76,22 @@ exports.createUser = [
     const user = new User({
       username: req.body.username,
       password: hashedPassword,
-      screenName: req.body.screenName,
+      placeholder: false,
     });
 
     await user.save();
     return res.json({ user });
   }),
 ];
+
+exports.getUsers = asyncHandler(async (req, res, next) => {
+  const users = await User.find({ placeholder: false })
+    .select('username')
+    .sort({ username: 1 })
+    .exec();
+
+  res.json({ users });
+});
 
 exports.updateUser = [
   body('bio').trim().escape(),
