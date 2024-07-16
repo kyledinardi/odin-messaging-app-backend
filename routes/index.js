@@ -9,11 +9,7 @@ const router = express.Router();
 router.post('/users/login', userController.login);
 router.post('/users', userController.createUser);
 
-router.get(
-  '/users',
-  passport.authenticate('jwt', { session: false }),
-  userController.getUsers,
-);
+router.get('/users', userController.getUsers);
 
 router.put(
   '/users',
@@ -33,17 +29,8 @@ router.post(
   roomController.createRoom,
 );
 
-router.get(
-  '/rooms',
-  passport.authenticate('jwt', { session: false }),
-  roomController.getRooms,
-);
-
-router.get(
-  '/rooms/:roomId',
-  passport.authenticate('jwt', { session: false }),
-  roomController.getRoom,
-);
+router.get('/rooms', roomController.getRooms);
+router.get('/rooms/:roomId', roomController.getRoom);
 
 router.post(
   '/messages',
@@ -51,11 +38,7 @@ router.post(
   messageController.createMessage,
 );
 
-router.get(
-  '/messages/:roomId',
-  passport.authenticate('jwt', { session: false }),
-  messageController.getMessages,
-);
+router.get('/messages/:roomId', messageController.getMessages);
 
 router.put(
   '/messages/:messageId',
