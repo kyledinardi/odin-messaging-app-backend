@@ -30,7 +30,12 @@ router.post(
 );
 
 router.get('/rooms', roomController.getRooms);
-router.get('/rooms/:roomId', roomController.getRoom);
+
+router.get(
+  '/rooms/:roomId',
+  passport.authenticate('jwt', { session: false }),
+  roomController.getRoom,
+);
 
 router.post(
   '/messages',

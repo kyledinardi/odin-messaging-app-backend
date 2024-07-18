@@ -23,6 +23,7 @@ exports.createMessage = [
     });
 
     await message.save();
+    await message.populate('sender');
     return res.json(message);
   }),
 ];
@@ -30,7 +31,10 @@ exports.createMessage = [
 exports.getMessages = asyncHandler(async (req, res, next) => {
   const [room, messages] = await Promise.all([
     Room.findById(req.params.roomId).exec(),
-    Message.find({ room: req.params.roomId }).sort({ timestamp: 1 }).exec(),
+    Message.find({ room: req.params.roomId })
+      .sort({ timestamp: 1 })
+      .populate('sender')
+      .exec(),
   ]);
 
   if (!room) {
@@ -62,6 +66,7 @@ exports.updateMessage = [
       { new: true },
     );
 
+    await newMessage.populate('sender');
     return res.json(newMessage);
   }),
 ];

@@ -23,10 +23,12 @@ exports.getRooms = asyncHandler(async (req, res, next) => {
 });
 
 exports.getRoom = asyncHandler(async (req, res, next) => {
-  const room = await Room.findById(req.params.roomId).exec();
-
+  const room = await Room.findById(req.params.roomId).populate('users').exec();
   if (!room) {
     return res.status(404).json({ msg: 'Room not found' });
+  }
+  if (!room.isPublic && !room.users.some((user) => user.id === req.user.id)) {
+    return res.status(403).json({ msg: 'You are not allowed in this room' });
   }
 
   return res.json(room);
