@@ -86,11 +86,20 @@ exports.createUser = [
 
 exports.getUsers = asyncHandler(async (req, res, next) => {
   const users = await User.find({ placeholder: false })
-    .select('username')
     .sort({ username: 1 })
     .exec();
 
-  res.json({ users });
+  return res.json({ users });
+});
+
+exports.getUser = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.params.userId);
+
+  if (!user) {
+    return res.status(404).json({ msg: 'User not found' });
+  }
+
+  return res.json(user);
 });
 
 exports.updateUser = [
