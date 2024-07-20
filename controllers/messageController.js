@@ -7,9 +7,9 @@ exports.createMessage = [
   body('text').trim().escape(),
 
   asyncHandler(async (req, res, next) => {
-    const room = await Room.findById(req.body.room).exec();
+    const room = await Room.findById(req.body.room).populate('users').exec();
 
-    if (!room.isPublic && !room.users.includes(req.user.username)) {
+    if (!room.isPublic && !room.users.some((user) => user.id === req.user.id)) {
       return res
         .status(403)
         .json({ msg: 'You cannot send messages to that room' });
@@ -85,5 +85,5 @@ exports.deleteMessage = asyncHandler(async (req, res, next) => {
   }
 
   await Message.findByIdAndDelete(message.id).exec();
-  return res.json({ msg: 'Message successfully deleted' });
+  return res.json(message);
 });

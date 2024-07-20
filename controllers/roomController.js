@@ -13,13 +13,18 @@ exports.createRoom = [
     });
 
     await room.save();
+    await room.populate('users');
     return res.json(room);
   }),
 ];
 
 exports.getRooms = asyncHandler(async (req, res, next) => {
-  const rooms = await Room.find().sort({ name: 1 }).exec();
-  return res.json({ rooms });
+  const rooms = await Room.find().sort({ name: 1 }).populate('users').exec();
+  const filteredRooms = rooms.filter(
+    (room) =>
+      room.isPublic || room.users.some((user) => user.id === req.user.id),
+  );
+  return res.json({ rooms: filteredRooms });
 });
 
 exports.getRoom = asyncHandler(async (req, res, next) => {

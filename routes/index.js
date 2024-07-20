@@ -29,7 +29,11 @@ router.post(
   roomController.createRoom,
 );
 
-router.get('/rooms', roomController.getRooms);
+router.get(
+  '/rooms',
+  passport.authenticate('jwt', { session: false }),
+  roomController.getRooms,
+);
 
 router.get(
   '/rooms/:roomId',
