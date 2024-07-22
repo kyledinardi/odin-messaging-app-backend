@@ -7,35 +7,6 @@ const User = require('../models/user');
 const Room = require('../models/room');
 const Message = require('../models/message');
 
-exports.login = (req, res, next) => [
-  body('username').trim().escape(),
-  body('password').trim().escape(),
-
-  passport.authenticate('local', { session: false }, (err, user, info) => {
-    if (err) {
-      return next(err);
-    }
-    if (!user) {
-      return res.status(400).json({ user, message: info.message });
-    }
-
-    req.login(user, { session: false }, (err2) => {
-      if (err2) {
-        return next(err2);
-      }
-      const userInfo = {
-        id: user._id,
-        username: user.username,
-      };
-
-      const token = jwt.sign(userInfo, process.env.JWT_SECRET);
-      return res.json({ user, token });
-    });
-
-    return null;
-  })(req, res, next),
-];
-
 exports.login = [
   body('username').trim().escape(),
   body('password').trim().escape(),
@@ -66,7 +37,9 @@ exports.login = [
           throw new Error(`Error updating user: ${userUpdateErr}`);
         });
 
-        const token = jwt.sign(userInfo, process.env.JWT_SECRET);
+        const token = jwt.sign(userInfo, process.env.JWT_SECRET, {
+          expiresIn: '24h',
+        });
         return res.json({ user, token });
       });
 
