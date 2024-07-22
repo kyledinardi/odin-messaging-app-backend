@@ -36,6 +36,45 @@ exports.login = (req, res, next) => [
   })(req, res, next),
 ];
 
+exports.login = [
+  body('username').trim().escape(),
+  body('password').trim().escape(),
+
+  (req, res, next) => {
+    passport.authenticate('local', { session: false }, (err, user, info) => {
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.status(400).json({ user, message: info.message });
+      }
+
+      req.login(user, { session: false }, (loginErr) => {
+        if (loginErr) {
+          return next(loginErr);
+        }
+        const userInfo = {
+          id: user._id,
+          username: user.username,
+        };
+
+        User.findOneAndUpdate(
+          { username: req.body.username },
+          { lastLogin: Date.now() },
+          { new: true },
+        ).catch((userUpdateErr) => {
+          throw new Error(`Error updating user: ${userUpdateErr}`);
+        });
+
+        const token = jwt.sign(userInfo, process.env.JWT_SECRET);
+        return res.json({ user, token });
+      });
+
+      return null;
+    })(req, res, next);
+  },
+];
+
 exports.createUser = [
   asyncHandler(
     body('username')

@@ -6,6 +6,7 @@ const UserSchema = new Schema({
   placeholder: { type: Boolean, required: true },
   bio: { type: String },
   pictureUrl: { type: String },
+  lastLogin: { type: Date },
 });
 
 module.exports = model('User', UserSchema);
