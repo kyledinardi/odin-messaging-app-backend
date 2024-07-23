@@ -97,6 +97,8 @@ exports.createUser = [
 ];
 
 exports.getUsers = asyncHandler(async (req, res, next) => {
+  await User.findByIdAndUpdate(req.user.id, { lastOnline: Date.now() });
+
   const users = await User.find({ placeholder: false })
     .sort({ username: 1 })
     .exec();
@@ -132,7 +134,7 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
   await Promise.all([
     User.findByIdAndDelete(req.user.id).exec(),
 
-    Room.deleteMany({ users: req.user.username }).exec(),
+    Room.deleteMany({ users: req.user.id }).exec(),
 
     Message.updateMany(
       { sender: req.user.id },
