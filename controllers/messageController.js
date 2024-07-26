@@ -1,25 +1,38 @@
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
 const asyncHandler = require('express-async-handler');
+const { unlink } = require('fs/promises');
 const { body } = require('express-validator');
 const Room = require('../models/room');
 const Message = require('../models/message');
 
+const storage = multer.diskStorage({
+  destination: 'uploads/',
+  filename(req, file, cb) {
+    cb(null, `${crypto.randomUUID()}.${file.originalname.split('.').pop()}`);
+  },
+});
+
+const upload = multer({ storage });
+
 exports.createMessage = [
-  body('text').trim().escape(),
+  upload.single('messageImage'),
 
   asyncHandler(async (req, res, next) => {
-    const room = await Room.findById(req.body.room).populate('users').exec();
+    let imageUrl = '';
 
-    if (!room.isPublic && !room.users.some((user) => user.id === req.user.id)) {
-      return res
-        .status(403)
-        .json({ msg: 'You cannot send messages to that room' });
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path);
+      imageUrl = result.secure_url;
+      unlink(req.file.path);
     }
 
     const message = new Message({
-      text: req.body.text,
+      text: req.body.messageText,
       timestamp: Date.now(),
-      room: req.body.room,
+      room: req.body.roomId,
       sender: req.user.id,
+      imageUrl,
     });
 
     await message.save();

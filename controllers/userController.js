@@ -1,6 +1,7 @@
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
 const asyncHandler = require('express-async-handler');
+const { unlink } = require('fs/promises');
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -48,9 +49,7 @@ exports.login = [
           throw new Error(`Error updating user: ${userUpdateErr}`);
         });
 
-        const token = jwt.sign(userInfo, process.env.JWT_SECRET, {
-          expiresIn: '24h',
-        });
+        const token = jwt.sign(userInfo, process.env.JWT_SECRET);
         return res.json({ user, token });
       });
 
@@ -109,6 +108,14 @@ exports.createUser = [
   }),
 ];
 
+exports.logout = asyncHandler(async (req, res, next) => {
+  await User.findByIdAndUpdate(req.user.id, {
+    lastOnline: Date.now() - 300000,
+  });
+
+  return res.json({ msg: 'User successfully logged out' });
+});
+
 exports.getUsers = asyncHandler(async (req, res, next) => {
   await User.findByIdAndUpdate(req.user.id, { lastOnline: Date.now() });
 
@@ -155,8 +162,7 @@ exports.updateUserPicture = [
       { new: true },
     );
 
-    console.log(result.secure_url);
-
+    unlink(req.file.path);
     return res.json(newUser);
   }),
 ];

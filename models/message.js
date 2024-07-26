@@ -5,6 +5,7 @@ const MessageSchema = new Schema({
   timestamp: { type: Date, required: true },
   room: { type: Schema.Types.ObjectId, ref: 'Room', required: true },
   sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  imageUrl: { type: String },
 });
 
 module.exports = model('Message', MessageSchema);

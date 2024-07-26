@@ -10,6 +10,12 @@ router.post('/users/login', userController.login);
 router.post('/users', userController.createUser);
 
 router.get(
+  '/users/logout',
+  passport.authenticate('jwt', { session: false }),
+  userController.logout,
+);
+
+router.get(
   '/users',
   passport.authenticate('jwt', { session: false }),
   userController.getUsers,
