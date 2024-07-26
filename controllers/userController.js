@@ -1,3 +1,5 @@
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
 const asyncHandler = require('express-async-handler');
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
@@ -6,6 +8,15 @@ const passport = require('passport');
 const User = require('../models/user');
 const Room = require('../models/room');
 const Message = require('../models/message');
+
+const storage = multer.diskStorage({
+  destination: 'uploads/',
+  filename(req, file, cb) {
+    cb(null, `${req.user.id}.${file.originalname.split('.').pop()}`);
+  },
+});
+
+const upload = multer({ storage });
 
 exports.login = [
   body('username').trim().escape(),
@@ -88,6 +99,8 @@ exports.createUser = [
     const user = new User({
       username: req.body.username,
       password: hashedPassword,
+      pictureUrl:
+        'https://res.cloudinary.com/dhg8qxkfc/image/upload/v1722008094/fvgrcexpgvimfjfp3uj4.webp',
       placeholder: false,
     });
 
@@ -125,6 +138,24 @@ exports.updateUser = [
       { bio: req.body.bio, _id: req.user.id },
       { new: true },
     );
+
+    return res.json(newUser);
+  }),
+];
+
+exports.updateUserPicture = [
+  upload.single('newPfp'),
+
+  asyncHandler(async (req, res, next) => {
+    const result = await cloudinary.uploader.upload(req.file.path);
+
+    const newUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { pictureUrl: result.secure_url, _id: req.user.id },
+      { new: true },
+    );
+
+    console.log(result.secure_url);
 
     return res.json(newUser);
   }),

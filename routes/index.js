@@ -23,6 +23,12 @@ router.put(
   userController.updateUser,
 );
 
+router.put(
+  '/users/picture',
+  passport.authenticate('jwt', { session: false }),
+  userController.updateUserPicture,
+);
+
 router.delete(
   '/users',
   passport.authenticate('jwt', { session: false }),
