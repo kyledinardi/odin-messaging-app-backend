@@ -1,4 +1,5 @@
 const cloudinary = require('cloudinary').v2;
+const { PrismaClient } = require('@prisma/client');
 const multer = require('multer');
 const asyncHandler = require('express-async-handler');
 const { unlink } = require('fs/promises');
@@ -6,9 +7,6 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
-const User = require('../models/user');
-const Room = require('../models/room');
-const Message = require('../models/message');
 
 const storage = multer.diskStorage({
   destination: 'uploads/',
@@ -18,36 +16,39 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const prisma = new PrismaClient();
 
 exports.login = [
-  body('username').trim().escape(),
-  body('password').trim().escape(),
+  body('username').trim(),
+  body('password').trim(),
 
   (req, res, next) => {
     passport.authenticate('local', { session: false }, (err, user, info) => {
       if (err) {
         return next(err);
       }
+
       if (!user) {
         return res.status(400).json({ user, message: info.message });
       }
 
-      req.login(user, { session: false }, (loginErr) => {
+      req.login(user, { session: false }, async (loginErr) => {
         if (loginErr) {
           return next(loginErr);
         }
+
         const userInfo = {
-          id: user._id,
+          id: user.id,
           username: user.username,
         };
 
-        User.findOneAndUpdate(
-          { username: req.body.username },
-          { lastLogin: Date.now() },
-          { new: true },
-        ).catch((userUpdateErr) => {
-          throw new Error(`Error updating user: ${userUpdateErr}`);
-        });
+        await prisma.user
+          .update({
+            where: { username: req.body.username },
+            data: { lastOnline: new Date() },
+          })
+
+          .catch((userUpdateErr) => console.error(userUpdateErr));
 
         const token = jwt.sign(userInfo, process.env.JWT_SECRET);
         return res.json({ user, token });
@@ -59,31 +60,28 @@ exports.login = [
 ];
 
 exports.createUser = [
-  asyncHandler(
-    body('username')
-      .trim()
-      .escape()
-      .isLength({ min: 1 })
-      .withMessage('Username must not be empty')
-      .custom(async (value) => {
-        const usernameInDatabase = await User.findOne({
-          username: value,
-        }).exec();
-
-        if (usernameInDatabase) {
-          throw new Error('A user already exists with this username');
-        }
-      }),
-  ),
-
-  body('password', 'Password must not be empty')
+  body('username')
     .trim()
-    .escape()
-    .isLength({ min: 1 }),
+    .notEmpty()
+    .withMessage('Username must not be empty')
+
+    .custom(async (username) => {
+      const usernameInDatabase = await prisma.user
+        .findUnique({
+          where: { username },
+        })
+        
+        .catch((err) => console.error(err));
+
+      if (usernameInDatabase) {
+        throw new Error('A user already exists with this username');
+      }
+    }),
+
+  body('password', 'Password must not be empty').trim().notEmpty(),
 
   body('passwordConfirmation', 'Passwords did not match')
     .trim()
-    .escape()
     .custom((value, { req }) => value === req.body.password),
 
   asyncHandler(async (req, res, next) => {
@@ -93,41 +91,49 @@ exports.createUser = [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const passwordHash = await bcrypt.hash(req.body.password, 10);
 
-    const user = new User({
-      username: req.body.username,
-      password: hashedPassword,
-      pictureUrl:
-        'https://res.cloudinary.com/dhg8qxkfc/image/upload/v1722008094/fvgrcexpgvimfjfp3uj4.webp',
-      placeholder: false,
+    const user = await prisma.user.create({
+      data: {
+        username: req.body.username,
+        passwordHash,
+
+        pictureUrl:
+          'https://res.cloudinary.com/dhg8qxkfc/image/upload/v1722008094/fvgrcexpgvimfjfp3uj4.webp',
+      },
     });
 
-    await user.save();
     return res.json({ user });
   }),
 ];
 
 exports.logout = asyncHandler(async (req, res, next) => {
-  await User.findByIdAndUpdate(req.user.id, {
-    lastOnline: Date.now() - 300000,
+  const user = await prisma.user.update({
+    where: { id: parseInt(req.user.id, 10) },
+    data: { lastOnline: new Date(Date.now() - 300000) },
   });
 
-  return res.json({ msg: 'User successfully logged out' });
+  return res.json({ msg: `${user.username} has successfully logged out` });
 });
 
 exports.getUsers = asyncHandler(async (req, res, next) => {
-  await User.findByIdAndUpdate(req.user.id, { lastOnline: Date.now() });
+  await prisma.user.update({
+    where: { id: req.user.id },
+    data: { lastOnline: new Date() },
+  });
 
-  const users = await User.find({ placeholder: false })
-    .sort({ username: 1 })
-    .exec();
+  const users = await prisma.user.findMany({
+    where: { placeholder: false },
+    orderBy: { username: 'asc' },
+  });
 
   return res.json({ users });
 });
 
 exports.getUser = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.params.userId);
+  const user = await prisma.findUnique({
+    where: { id: parseInt(req.params.userId, 10) },
+  });
 
   if (!user) {
     return res.status(404).json({ msg: 'User not found' });
@@ -137,14 +143,13 @@ exports.getUser = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateUser = [
-  body('bio').trim().escape(),
+  body('bio').trim(),
 
   asyncHandler(async (req, res, next) => {
-    const newUser = await User.findByIdAndUpdate(
-      req.user.id,
-      { bio: req.body.bio, _id: req.user.id },
-      { new: true },
-    );
+    const newUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { bio: req.body.bio },
+    });
 
     return res.json(newUser);
   }),
@@ -156,11 +161,10 @@ exports.updateUserPicture = [
   asyncHandler(async (req, res, next) => {
     const result = await cloudinary.uploader.upload(req.file.path);
 
-    const newUser = await User.findByIdAndUpdate(
-      req.user.id,
-      { pictureUrl: result.secure_url, _id: req.user.id },
-      { new: true },
-    );
+    const newUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { pictureUrl: result.secure_url },
+    });
 
     unlink(req.file.path);
     return res.json(newUser);
@@ -168,16 +172,10 @@ exports.updateUserPicture = [
 ];
 
 exports.deleteUser = asyncHandler(async (req, res, next) => {
-  await Promise.all([
-    User.findByIdAndDelete(req.user.id).exec(),
+  const rooms = await prisma.room.deleteMany({
+    where: { users: { some: { id: req.user.id } } },
+  });
 
-    Room.deleteMany({ users: req.user.id }).exec(),
-
-    Message.updateMany(
-      { sender: req.user.id },
-      { text: '[comment removed]', sender: '6694037e2c4056014e3eb50f' },
-    ).exec(),
-  ]);
-
-  return res.json({ msg: 'User successfully deleted' });
+  const user = await prisma.user.delete({ where: { id: req.user.id } });
+  return res.json({ user, rooms });
 });

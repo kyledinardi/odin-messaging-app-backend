@@ -3,17 +3,20 @@ const bcrypt = require('bcryptjs');
 const LocalStragetgy = require('passport-local').Strategy;
 const JwtStrategy = require('passport-jwt').Strategy;
 const { ExtractJwt } = require('passport-jwt');
-const User = require('../models/user');
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
 
 passport.use(
   new LocalStragetgy(async (username, password, done) => {
     try {
-      const user = await User.findOne({ username });
+      const user = await prisma.user.findUnique({ where: { username } });
       let match = false;
 
       if (user) {
-        match = await bcrypt.compare(password, user.password);
+        match = await bcrypt.compare(password, user.passwordHash);
       }
+      
       if (!match) {
         return done(null, false, { message: 'Incorrect username or password' });
       }
@@ -34,7 +37,10 @@ passport.use(
 
     async (jwtPayload, done) => {
       try {
-        const user = await User.findById(jwtPayload.id);
+        const user = await prisma.user.findUnique({
+          where: { id: jwtPayload.id },
+        });
+
         return done(null, user || false);
       } catch (err) {
         return done(err, false);

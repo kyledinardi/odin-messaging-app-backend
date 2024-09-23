@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  passwordHash String
+  placeholder  Boolean   @default(false)
+  pictureUrl   String
+  bio          String?
+  lastOnline   DateTime  @default(now())
+  rooms        Room[]
+  messages     Message[]
+}
+
+model Room {
+  id       Int       @id @default(autoincrement())
+  name     String
+  isPublic Boolean
+  users    User[]
+  messages Message[]
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  text      String
+  timestamp DateTime @default(now())
+  imageUrl  String
+  User      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int?
+  Room      Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId    Int?
+}

@@ -1,10 +1,9 @@
 const cloudinary = require('cloudinary').v2;
+const { PrismaClient } = require('@prisma/client');
 const multer = require('multer');
 const asyncHandler = require('express-async-handler');
 const { unlink } = require('fs/promises');
 const { body } = require('express-validator');
-const Room = require('../models/room');
-const Message = require('../models/message');
 
 const storage = multer.diskStorage({
   destination: 'uploads/',
@@ -14,6 +13,7 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const prisma = new PrismaClient();
 
 exports.createMessage = [
   upload.single('messageImage'),
@@ -27,27 +27,40 @@ exports.createMessage = [
       unlink(req.file.path);
     }
 
-    const message = new Message({
-      text: req.body.messageText,
-      timestamp: Date.now(),
-      room: req.body.roomId,
-      sender: req.user.id,
-      imageUrl,
+    const message = await prisma.message.create({
+      data: {
+        text: req.body.messageText,
+        imageUrl,
+      },
     });
 
-    await message.save();
-    await message.populate('sender');
+    const [user] = await Promise.all([
+      prisma.user.update({
+        where: { id: req.user.id },
+        data: { messages: { connect: { id: message.id } } },
+      }),
+
+      prisma.room.update({
+        where: { id: parseInt(req.body.roomId, 10) },
+        data: { messages: { connect: { id: message.id } } },
+      }),
+    ]);
+
+    message.User = user;
+    message.userId = user.id;
     return res.json(message);
   }),
 ];
 
 exports.getMessages = asyncHandler(async (req, res, next) => {
   const [room, messages] = await Promise.all([
-    Room.findById(req.params.roomId).exec(),
-    Message.find({ room: req.params.roomId })
-      .sort({ timestamp: 1 })
-      .populate('sender')
-      .exec(),
+    prisma.room.findUnique({ where: { id: parseInt(req.params.roomId, 10) } }),
+
+    prisma.message.findMany({
+      where: { roomId: parseInt(req.params.roomId, 10) },
+      orderBy: { timestamp: 'asc' },
+      include: { User: true },
+    }),
   ]);
 
   if (!room) {
@@ -58,45 +71,44 @@ exports.getMessages = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateMessage = [
-  body('text').trim().escape(),
+  body('text').trim(),
 
   asyncHandler(async (req, res, next) => {
-    const message = await Message.findById(req.params.messageId)
-      .populate('sender')
-      .exec();
+    const message = await prisma.message.findUnique({
+      where: { id: parseInt(req.params.messageId, 10) },
+    });
 
     if (!message) {
       return res.status(404).json({ msg: 'Message not found' });
     }
 
-    if (req.user.id !== message.sender.id) {
+    if (req.user.id !== message.userId) {
       return res.status(403).json({ msg: 'You cannot edit this message' });
     }
 
-    const newMessage = await Message.findByIdAndUpdate(
-      message.id,
-      { text: req.body.text, _id: message.id },
-      { new: true },
-    );
+    const newMessage = await prisma.message.update({
+      where: { id: parseInt(req.params.messageId, 10) },
+      data: { text: req.body.text },
+      include: { User: true },
+    });
 
-    await newMessage.populate('sender');
     return res.json(newMessage);
   }),
 ];
 
 exports.deleteMessage = asyncHandler(async (req, res, next) => {
-  const message = await Message.findById(req.params.messageId)
-    .populate('sender')
-    .exec();
+  const message = await prisma.message.findUnique({
+    where: { id: parseInt(req.params.messageId, 10) },
+  });
 
   if (!message) {
     return res.status(404).json({ msg: 'Message not found' });
   }
 
-  if (req.user.id !== message.sender.id) {
+  if (req.user.id !== message.userId) {
     return res.status(403).json({ msg: 'You cannot delete this message' });
   }
 
-  await Message.findByIdAndDelete(message.id).exec();
+  await prisma.message.delete({ where: { id: message.id } });
   return res.json(message);
 });

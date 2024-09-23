@@ -8,75 +8,21 @@ const router = express.Router();
 
 router.post('/users/login', userController.login);
 router.post('/users', userController.createUser);
+router.use(passport.authenticate('jwt', { session: false }));
 
-router.get(
-  '/users/logout',
-  passport.authenticate('jwt', { session: false }),
-  userController.logout,
-);
-
-router.get(
-  '/users',
-  passport.authenticate('jwt', { session: false }),
-  userController.getUsers,
-);
-
+router.get('/users/logout', userController.logout);
+router.get('/users', userController.getUsers);
 router.get('/users/:userId', userController.getUser);
+router.put('/users', userController.updateUser);
+router.put('/users/picture', userController.updateUserPicture);
+router.delete('/users', userController.deleteUser);
 
-router.put(
-  '/users',
-  passport.authenticate('jwt', { session: false }),
-  userController.updateUser,
-);
+router.post('/rooms', roomController.createRoom);
+router.get('/rooms', roomController.getRooms);
 
-router.put(
-  '/users/picture',
-  passport.authenticate('jwt', { session: false }),
-  userController.updateUserPicture,
-);
-
-router.delete(
-  '/users',
-  passport.authenticate('jwt', { session: false }),
-  userController.deleteUser,
-);
-
-router.post(
-  '/rooms',
-  passport.authenticate('jwt', { session: false }),
-  roomController.createRoom,
-);
-
-router.get(
-  '/rooms',
-  passport.authenticate('jwt', { session: false }),
-  roomController.getRooms,
-);
-
-router.get(
-  '/rooms/:roomId',
-  passport.authenticate('jwt', { session: false }),
-  roomController.getRoom,
-);
-
-router.post(
-  '/messages',
-  passport.authenticate('jwt', { session: false }),
-  messageController.createMessage,
-);
-
+router.post('/messages', messageController.createMessage);
 router.get('/messages/:roomId', messageController.getMessages);
-
-router.put(
-  '/messages/:messageId',
-  passport.authenticate('jwt', { session: false }),
-  messageController.updateMessage,
-);
-
-router.delete(
-  '/messages/:messageId',
-  passport.authenticate('jwt', { session: false }),
-  messageController.deleteMessage,
-);
+router.put('/messages/:messageId', messageController.updateMessage);
+router.delete('/messages/:messageId', messageController.deleteMessage);
 
 module.exports = router;
